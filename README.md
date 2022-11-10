@@ -43,7 +43,6 @@ txIds,err := w.TxIds()
 txIds // []string
 ```
 
-
 ### BTC Faucet
 check this website https://coinfaucet.eu/en/btc-testnet
 
