@@ -6,9 +6,10 @@ type Node struct {
 	Test bool
 }
 
-func CreateNode(host string, isTest bool) Node {
+func CreateNode(http string, ws string, isTest bool) Node {
 	return Node{
-		Http: host,
+		Http: http,
+		Ws:   ws,
 		Test: isTest,
 	}
 }
