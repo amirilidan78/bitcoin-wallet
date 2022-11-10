@@ -4,11 +4,13 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
+	"github.com/Amirilidan78/bitcoin-wallet/blockBook"
 	"github.com/Amirilidan78/bitcoin-wallet/enums"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
+	"strconv"
 )
 
 type BitcoinWallet struct {
@@ -16,6 +18,7 @@ type BitcoinWallet struct {
 	Address    string
 	PrivateKey string
 	PublicKey  string
+	blockBook  blockBook.HttpBlockBook
 }
 
 // generating
@@ -35,6 +38,7 @@ func GenerateBitcoinWallet(node enums.Node) *BitcoinWallet {
 		Address:    address,
 		PrivateKey: privateKeyHex,
 		PublicKey:  publicKeyHex,
+		blockBook:  blockBook.NewHttpBlockBookService(node),
 	}
 }
 
@@ -62,6 +66,7 @@ func CreateBitcoinWallet(node enums.Node, privateKeyHex string) (*BitcoinWallet,
 		Address:    address,
 		PrivateKey: privateKeyHex,
 		PublicKey:  publicKeyHex,
+		blockBook:  blockBook.NewHttpBlockBookService(node),
 	}, nil
 }
 
@@ -141,4 +146,53 @@ func getAddressFromPublicKey(node enums.Node, publicKey *ecdsa.PublicKey) (strin
 	}
 
 	return addr.EncodeAddress(), nil
+}
+
+// balance
+
+func (bw *BitcoinWallet) Balance() (int64, error) {
+
+	res, err := bw.blockBook.GetAddress(bw.Address)
+	if err != nil {
+		return 0, err
+	}
+
+	balance, err := strconv.Atoi(res.Balance)
+	if err != nil {
+		return 0, err
+	}
+
+	return int64(balance), nil
+}
+
+// transactions
+
+func (bw *BitcoinWallet) UTXOs() ([]blockBook.Utxo, error) {
+
+	utxos, err := bw.blockBook.GetAddressUTXO(bw.Address)
+	if err != nil {
+		return utxos, err
+	}
+
+	var res []blockBook.Utxo
+
+	for _, utxo := range utxos {
+		if utxo.Confirmations > 2 {
+			res = append(res, utxo)
+		}
+	}
+
+	return res, nil
+}
+
+func (bw *BitcoinWallet) TxIds() ([]string, error) {
+
+	var txIds []string
+
+	res, err := bw.blockBook.GetAddress(bw.Address)
+	if err != nil {
+		return txIds, err
+	}
+
+	return res.TxIds, nil
 }
