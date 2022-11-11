@@ -16,52 +16,77 @@ import (
 
 const privateKeyHex = "88414dbb373a211bc157265a267f3de6a4cec210f3a5da12e89630f2c447ad27"
 
+const utxoHash = "c77fe6125260df1702382ff89716dd5873051ffb95872d6d9407132ef52c4e84"
+const utxoAmount = 67000
+
+func createWallet() *bitcoinWallet.BitcoinWallet {
+	w, _ := bitcoinWallet.CreateBitcoinWallet(enums.TEST_NODE, privateKeyHex)
+	return w
+}
+
+func walletPrivateAndPublicKey(wallet *bitcoinWallet.BitcoinWallet) (*btcec.PrivateKey, *btcec.PublicKey) {
+	b, _ := wallet.PrivateKeyBytes()
+	return btcec.PrivKeyFromBytes(b)
+}
+
+func getFromAddress(wallet *bitcoinWallet.BitcoinWallet) btcutil.Address {
+	address, _ := btcutil.DecodeAddress(wallet.Address, &chaincfg.TestNet3Params)
+	return address
+}
+
+func getToAddress() btcutil.Address {
+	address, _ := btcutil.DecodeAddress("tb1qtvnf9xcnyw34qrxc0aufqr34el7l4fec4fnknp", &chaincfg.TestNet3Params)
+	return address
+}
+
 func main() {
 
 	redeemTx := wire.NewMsgTx(wire.TxVersion)
-	amount := int64(67000)
-	utxoHash := "7229ce852799857ea1834bc33d6e5214a4b6c7734933121fdbb87fd127f5e240"
-	wallet, _ := bitcoinWallet.CreateBitcoinWallet(enums.TEST_NODE, privateKeyHex)
+	amount := int64(utxoAmount) - 50
 
-	b, _ := wallet.PrivateKeyBytes()
-	priv, publicKey := btcec.PrivKeyFromBytes(b)
+	wallet := createWallet()
+	priv, pub := walletPrivateAndPublicKey(wallet)
 
-	address, err := btcutil.DecodeAddress(wallet.Address, &chaincfg.TestNet3Params)
-	toAddress, err := btcutil.DecodeAddress("tb1qtvnf9xcnyw34qrxc0aufqr34el7l4fec4fnknp", &chaincfg.TestNet3Params)
-	fmt.Println(priv.PubKey().SerializeCompressed(), "NNNNN")
-
+	fmt.Println(wallet.Address)
+	fromAddress := getFromAddress(wallet)
+	toAddress := getToAddress()
 	toAddressByte, err := txscript.PayToAddrScript(toAddress)
-	fmt.Println(address, err)
+
 	bldr := txscript.NewScriptBuilder()
 	bldr.AddOp(txscript.OP_1)
 	bldr.AddData(priv.PubKey().SerializeCompressed())
-	sigScript, err := bldr.Script()
-	fmt.Println(sigScript, err)
+
+	// sigScript, err := bldr.Script()
 
 	hash, err := chainhash.NewHashFromStr(utxoHash)
-	fmt.Println(hash, err)
 
-	witness := [][]byte{
-		publicKey.SerializeCompressed(),
-	}
-
-	outPoint := wire.NewOutPoint(hash, 10)
-	txIn := wire.NewTxIn(outPoint, nil, witness)
+	outPoint := wire.NewOutPoint(hash, 0)
+	txIn := wire.NewTxIn(outPoint, nil, nil)
 	redeemTx.AddTxIn(txIn)
 
 	redeemTxOut := wire.NewTxOut(amount, toAddressByte)
 	redeemTx.AddTxOut(redeemTxOut)
 
-	pkScripts, err := txscript.ComputePkScript(nil, witness)
-	fmt.Println(err)
+	subscript := fromAddress.ScriptAddress()
+	a := txscript.NewMultiPrevOutFetcher(nil)
+	txSigHashes := txscript.NewTxSigHashes(redeemTx, a)
+	wit, err := txscript.WitnessSignature(redeemTx, txSigHashes, 0, amount, subscript, txscript.SigHashAll, priv, true)
 
-	finalRawTx, err := SignTx(priv, pkScripts.Script(), redeemTx)
+	fmt.Println(wit, err)
+
+	witness := [][]byte{
+		pub.SerializeCompressed(),
+	}
+
+	redeemTx.TxIn[0].Witness = witness
+
+	finalRawTx, err := GetRawTransaction(redeemTx)
 	fmt.Println("==========")
 	fmt.Println(finalRawTx, err)
 
 }
 
-func SignTx(privKey *btcec.PrivateKey, pkScript []byte, redeemTx *wire.MsgTx) (string, error) {
+func GetRawTransaction(redeemTx *wire.MsgTx) (string, error) {
 
 	// since there is only one input in our transaction
 	// we use 0 as second argument, if the transaction
