@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/Amirilidan78/bitcoin-wallet/blockBook"
 	"github.com/Amirilidan78/bitcoin-wallet/enums"
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -31,7 +32,7 @@ func GenerateBitcoinWallet(node enums.Node) *BitcoinWallet {
 	publicKey, _ := getPublicKeyFromPrivateKey(privateKey)
 	publicKeyHex := convertPublicKeyToHex(publicKey)
 
-	address, _ := getAddressFromPublicKey(node, publicKey)
+	address, _ := getAddressFromPrivateKey(node, privateKey)
 
 	return &BitcoinWallet{
 		Node:       node,
@@ -56,7 +57,7 @@ func CreateBitcoinWallet(node enums.Node, privateKeyHex string) (*BitcoinWallet,
 
 	publicKeyHex := convertPublicKeyToHex(publicKey)
 
-	address, err := getAddressFromPublicKey(node, publicKey)
+	address, err := getAddressFromPrivateKey(node, privateKey)
 	if err != nil {
 		return nil, err
 	}
@@ -128,18 +129,16 @@ func convertPublicKeyToHex(publicKey *ecdsa.PublicKey) string {
 
 // address
 
-func getAddressFromPublicKey(node enums.Node, publicKey *ecdsa.PublicKey) (string, error) {
-
-	privateKeyBytes := crypto.FromECDSAPub(publicKey)
-
-	pkHash := btcutil.Hash160(privateKeyBytes)
+func getAddressFromPrivateKey(node enums.Node, privateKey *ecdsa.PrivateKey) (string, error) {
 
 	chainConfig := &chaincfg.MainNetParams
 	if node.Test {
 		chainConfig = &chaincfg.TestNet3Params
 	}
 
-	addr, err := btcutil.NewAddressWitnessPubKeyHash(pkHash, chainConfig)
+	temp := crypto.FromECDSA(privateKey)
+	priv, _ := btcec.PrivKeyFromBytes(temp)
+	addr, err := btcutil.NewAddressWitnessPubKeyHash(btcutil.Hash160(priv.PubKey().SerializeCompressed()), chainConfig)
 	if err != nil {
 		fmt.Println(err)
 		return "", err
