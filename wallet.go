@@ -73,8 +73,28 @@ func CreateBitcoinWallet(node enums.Node, privateKeyHex string) (*BitcoinWallet,
 
 // struct functions
 
+func (bw *BitcoinWallet) Chain() *chaincfg.Params {
+	chainConfig := &chaincfg.MainNetParams
+	if bw.Node.Test {
+		chainConfig = &chaincfg.TestNet3Params
+	}
+	return chainConfig
+}
+
 func (bw *BitcoinWallet) PrivateKeyRCDSA() (*ecdsa.PrivateKey, error) {
 	return privateKeyFromHex(bw.PrivateKey)
+}
+
+func (bw *BitcoinWallet) PrivateKeyBTCE() (*btcec.PrivateKey, error) {
+
+	temp, err := bw.PrivateKeyBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	priv, _ := btcec.PrivKeyFromBytes(temp)
+
+	return priv, nil
 }
 
 func (bw *BitcoinWallet) PrivateKeyBytes() ([]byte, error) {
@@ -85,6 +105,16 @@ func (bw *BitcoinWallet) PrivateKeyBytes() ([]byte, error) {
 	}
 
 	return crypto.FromECDSA(priv), nil
+}
+
+func (bw *BitcoinWallet) WIF() (*btcutil.WIF, error) {
+
+	priv, err := bw.PrivateKeyBTCE()
+	if err != nil {
+		return nil, err
+	}
+
+	return btcutil.NewWIF(priv, bw.Chain(), true)
 }
 
 // private key
@@ -136,9 +166,9 @@ func getAddressFromPrivateKey(node enums.Node, privateKey *ecdsa.PrivateKey) (st
 		chainConfig = &chaincfg.TestNet3Params
 	}
 
-	temp := crypto.FromECDSA(privateKey)
-	priv, _ := btcec.PrivKeyFromBytes(temp)
-	addr, err := btcutil.NewAddressWitnessPubKeyHash(btcutil.Hash160(priv.PubKey().SerializeCompressed()), chainConfig)
+	_, pub := btcec.PrivKeyFromBytes(crypto.FromECDSA(privateKey))
+
+	addr, err := btcutil.NewAddressWitnessPubKeyHash(btcutil.Hash160(pub.SerializeCompressed()), chainConfig)
 	if err != nil {
 		fmt.Println(err)
 		return "", err
