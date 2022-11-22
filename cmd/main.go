@@ -26,36 +26,39 @@ func createWallet() *bitcoinWallet.BitcoinWallet {
 func main() {
 
 	tx()
+	test()
 
 }
 
 func tx() {
 
-	amount := int64(5000)
+	amount := int64(100000)
 	fee := int64(1000)
 
 	wallet := createWallet()
 
 	priv, _ := wallet.PrivateKeyBTCE()
 
-	tx, err := createTransaction(chain, priv, wallet.Address, toAddressHex, amount, fee)
+	tx, _ := createTransaction(chain, priv, wallet.Address, toAddressHex, amount, fee)
 
-	fmt.Println(tx, err)
+	fmt.Println("")
+	fmt.Println("tx")
+	fmt.Println(tx)
 
 }
 
 func test() {
 
-	totalAmount := int64(1200000)
+	totalAmount := int64(788000)
 	amount := int64(100000)
-	fee := int64(10000)
+	fee := int64(1000)
 
 	privKey := "cS9Zef6XdN3jHTFJFSsyJAtmDgCCdnygyVUJsLoyB8neuwhidUNJ"
 	spendAddrStr := "tb1qppv790u4dz48ctnk3p7ss7fmspckagp3wrfyp0"
-	destAddrStr := "n3xmiD8kMU42seVZEc5icPKxTrqATm5t6x"
+	destAddrStr := toAddressHex
 	chain := &chaincfg.TestNet3Params
-	txHash := "4de74b4af672742f331eb3e2712ab54eca9a49d7e34d132b5dd39b98186057d7"
-	position := 0
+	txHash := "0d36d447b86f6ec93b4ff6c743fd5a50f9e1f884ec9bdc27f5c53365837cc29e"
+	position := 1
 
 	spendAddr, err := btcutil.DecodeAddress(spendAddrStr, chain)
 	if err != nil {
@@ -95,9 +98,9 @@ func test() {
 		return
 	}
 
-	outPoint := wire.NewOutPoint(utxoHash, uint32(position))
 	redeemTx := wire.NewMsgTx(2)
 
+	outPoint := wire.NewOutPoint(utxoHash, uint32(position))
 	txIn := wire.NewTxIn(outPoint, nil, [][]byte{})
 	txIn.Sequence = txIn.Sequence - 2
 	redeemTx.AddTxIn(txIn)
@@ -118,6 +121,9 @@ func test() {
 		*outPoint: {},
 	}))
 
+	fmt.Println("totalAmount")
+	fmt.Println(totalAmount)
+
 	signature, err := txscript.WitnessSignature(redeemTx, sigHashes, 0, totalAmount, spenderAddrByte, txscript.SigHashAll, wif.PrivKey, true)
 	if err != nil {
 		log.Println("WitnessSignature err", err)
@@ -129,6 +135,8 @@ func test() {
 	redeemTx.Serialize(&signedTx)
 
 	hexSignedTx := hex.EncodeToString(signedTx.Bytes())
-	log.Println(hexSignedTx)
+	fmt.Println("")
+	fmt.Println("hexSignedTx")
+	fmt.Println(hexSignedTx)
 
 }
