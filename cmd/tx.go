@@ -120,15 +120,14 @@ func createTransactionInputsAndSign(privateKey *btcec.PrivateKey, utxos []blockB
 	transaction := wire.NewMsgTx(2)
 
 	// vin
-	for i, utxo := range utxos {
+	for _, utxo := range utxos {
 
 		hash, err := chainhash.NewHashFromStr(utxo.Txid)
 		if err != nil {
 			return nil, err
 		}
 
-		outPoint := wire.NewOutPoint(hash, uint32(i))
-		txIn := wire.NewTxIn(outPoint, nil, [][]byte{})
+		txIn := wire.NewTxIn(wire.NewOutPoint(hash, utxo.Vout), nil, [][]byte{})
 		txIn.Sequence = txIn.Sequence - 2
 		transaction.AddTxIn(txIn)
 	}
@@ -153,9 +152,14 @@ func createTransactionInputsAndSign(privateKey *btcec.PrivateKey, utxos []blockB
 	sigHashes := txscript.NewTxSigHashes(transaction, multiSigner)
 
 	// sign
-	for index, _ := range transaction.TxIn {
+	for index, utxo := range utxos {
 
-		signature, err := txscript.WitnessSignature(transaction, sigHashes, index, totalAmount, fromAddressScriptByte, txscript.SigHashAll, privateKey, true)
+		amount, err := strconv.ParseInt(utxo.Value, 10, 64)
+		if err != nil {
+			return nil, errors.New("ParseInt utxo value err " + err.Error())
+		}
+
+		signature, err := txscript.WitnessSignature(transaction, sigHashes, index, amount, fromAddressScriptByte, txscript.SigHashAll, privateKey, true)
 		if err != nil {
 			return nil, errors.New("WitnessSignature err " + err.Error())
 		}
