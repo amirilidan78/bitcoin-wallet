@@ -15,7 +15,7 @@ import (
 )
 
 var privateKeyHex = "88414dbb373a211bc157265a267f3de6a4cec210f3a5da12e89630f2c447ad27"
-var toAddressHex = "tb1q9dkhf8vxlvujxjmnslxsv97nseg9pjmxqsku3v"
+var toAddressHex = "tb1qppv790u4dz48ctnk3p7ss7fmspckagp3wrfyp0"
 var chain = &chaincfg.TestNet3Params
 
 func createWallet() *bitcoinWallet.BitcoinWallet {
@@ -26,22 +26,21 @@ func createWallet() *bitcoinWallet.BitcoinWallet {
 func main() {
 
 	tx()
-	test()
 
 }
 
 func tx() {
 
-	amount := int64(100000)
+	amount := int64(2789695)
 	fee := int64(1000)
 
 	wallet := createWallet()
+	fmt.Println(wallet.Address)
 
 	priv, _ := wallet.PrivateKeyBTCE()
 
 	tx, _ := createTransaction(chain, priv, wallet.Address, toAddressHex, amount, fee)
 
-	fmt.Println("")
 	fmt.Println("tx")
 	fmt.Println(tx)
 

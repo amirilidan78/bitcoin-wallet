@@ -36,7 +36,7 @@ func createTransactionAndSignTransaction(chain *chaincfg.Params, fromAddress str
 		return nil, errors.New("DecodeAddress fromAddr err " + err.Error())
 	}
 
-	fromAddrByte, err := txscript.PayToAddrScript(fromAddr)
+	fromAddrScriptByte, err := txscript.PayToAddrScript(fromAddr)
 
 	if err != nil {
 		return nil, errors.New("fromAddr PayToAddrScript err " + err.Error())
@@ -52,6 +52,11 @@ func createTransactionAndSignTransaction(chain *chaincfg.Params, fromAddress str
 		return nil, errors.New("toAddr PayToAddrScript err " + err.Error())
 	}
 
+	fromAddrByte, err := txscript.PayToAddrScript(fromAddr)
+	if err != nil {
+		return nil, errors.New("fromAddrByte PayToAddrScript err " + err.Error())
+	}
+
 	utxoList, totalAmount, err := prepareUTXOForTransaction(chain, fromAddress, amount, fee)
 	if err != nil {
 		return nil, errors.New("vin err " + err.Error())
@@ -60,7 +65,7 @@ func createTransactionAndSignTransaction(chain *chaincfg.Params, fromAddress str
 		return nil, errors.New("insufficient balance")
 	}
 
-	t, err := createTransactionInputsAndSign(privateKey, utxoList, fromAddrByte, toAddrByte, totalAmount, amount, fee)
+	t, err := createTransactionInputsAndSign(privateKey, utxoList, fromAddrByte, fromAddrScriptByte, toAddrByte, totalAmount, amount, fee)
 	if err != nil {
 		return nil, errors.New("vin err " + err.Error())
 	}
@@ -110,7 +115,7 @@ func getAddressUTXOFromBlockBook(chain *chaincfg.Params, address string) ([]bloc
 	return bb.GetAddressUTXO(address)
 }
 
-func createTransactionInputsAndSign(privateKey *btcec.PrivateKey, utxos []blockBook.Utxo, fromAddressByte []byte, toAddressByte []byte, totalAmount int64, amount int64, fee int64) (*wire.MsgTx, error) {
+func createTransactionInputsAndSign(privateKey *btcec.PrivateKey, utxos []blockBook.Utxo, fromAddressByte []byte, fromAddressScriptByte []byte, toAddressByte []byte, totalAmount int64, amount int64, fee int64) (*wire.MsgTx, error) {
 
 	transaction := wire.NewMsgTx(2)
 
@@ -122,7 +127,7 @@ func createTransactionInputsAndSign(privateKey *btcec.PrivateKey, utxos []blockB
 			return nil, err
 		}
 
-		outPoint := wire.NewOutPoint(hash, uint32(i+1))
+		outPoint := wire.NewOutPoint(hash, uint32(i))
 		txIn := wire.NewTxIn(outPoint, nil, [][]byte{})
 		txIn.Sequence = txIn.Sequence - 2
 		transaction.AddTxIn(txIn)
@@ -130,24 +135,27 @@ func createTransactionInputsAndSign(privateKey *btcec.PrivateKey, utxos []blockB
 
 	// vout
 	changeAmount := totalAmount - amount - fee
-	redeemTxOut0 := wire.NewTxOut(amount, toAddressByte)
-	transaction.AddTxOut(redeemTxOut0)
+	transaction.AddTxOut(wire.NewTxOut(amount, toAddressByte))
 	if changeAmount > 0 {
-		redeemTxOut1 := wire.NewTxOut(changeAmount, fromAddressByte)
-		transaction.AddTxOut(redeemTxOut1)
+		transaction.AddTxOut(wire.NewTxOut(changeAmount, fromAddressByte))
 	}
 
-	transaction.LockTime = 2407372
+	transaction.LockTime = 0
+
+	signerMap := make(map[wire.OutPoint]*wire.TxOut)
+
+	for _, in := range transaction.TxIn {
+		signerMap[in.PreviousOutPoint] = &wire.TxOut{}
+	}
+
+	multiSigner := txscript.NewMultiPrevOutFetcher(signerMap)
+
+	sigHashes := txscript.NewTxSigHashes(transaction, multiSigner)
 
 	// sign
-	for index, in := range transaction.TxIn {
+	for index, _ := range transaction.TxIn {
 
-		a := txscript.NewMultiPrevOutFetcher(map[wire.OutPoint]*wire.TxOut{
-			in.PreviousOutPoint: {},
-		})
-		sigHashes := txscript.NewTxSigHashes(transaction, a)
-
-		signature, err := txscript.WitnessSignature(transaction, sigHashes, 0, totalAmount, fromAddressByte, txscript.SigHashAll, privateKey, true)
+		signature, err := txscript.WitnessSignature(transaction, sigHashes, index, totalAmount, fromAddressScriptByte, txscript.SigHashAll, privateKey, true)
 		if err != nil {
 			return nil, errors.New("WitnessSignature err " + err.Error())
 		}
