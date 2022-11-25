@@ -43,6 +43,39 @@ txIds,err := w.TxIds()
 txIds // []string
 ```
 
+crawl blocks for addresses transactions
+```
+
+c := &Crawler{
+		Node: node, 
+		Addresses: []string{
+			"tb1qppv790u4dz48ctnk3p7ss7fmspckagp3wrfyp0", // list of your addresses
+		},
+	}
+	
+res, err := c.ScanBlocks(40) // scan latest 40 block on block chain and extract addressess transactions 
+
+Example 
+// *
+{
+    {
+        "address": "tb1qppv790u4dz48ctnk3p7ss7fmspckagp3wrfyp0",
+        "tranasctions": {
+            {
+                "tx_id": "e6160c52401949139688623ce33a6290eed43d8d564d6e16c38006c4dc28f4a8",
+                "from_address": "tb1qppv790u4dz48ctnk3p7ss7fmspckagp3wrfyp0",
+                "to_address": "tb1q0r23g66m9rhhak8aahsg53wfp5egt2huuc4tnu",
+                "amount": 100000,
+                "confirmations": 2,
+            }
+        }
+    },
+    ...
+}
+* // 
+	
+```
+
 Transfer btc
 ```
 txId,err := w.Transfer("tb1q0r23g66m9rhhak8aahsg53wfp5egt2huuc4tnu",10000,1000)
