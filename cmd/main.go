@@ -15,7 +15,7 @@ import (
 )
 
 var privateKeyHex = "88414dbb373a211bc157265a267f3de6a4cec210f3a5da12e89630f2c447ad27"
-var toAddressHex = "tb1qppv790u4dz48ctnk3p7ss7fmspckagp3wrfyp0"
+var toAddressHex = "tb1q0r23g66m9rhhak8aahsg53wfp5egt2huuc4tnu"
 var chain = &chaincfg.TestNet3Params
 
 func createWallet() *bitcoinWallet.BitcoinWallet {
@@ -24,9 +24,7 @@ func createWallet() *bitcoinWallet.BitcoinWallet {
 }
 
 func main() {
-
 	tx()
-
 }
 
 func tx() {
