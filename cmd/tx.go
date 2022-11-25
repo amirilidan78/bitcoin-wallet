@@ -143,14 +143,10 @@ func createTransactionInputsAndSign(privateKey *btcec.PrivateKey, utxos []blockB
 	transaction.LockTime = 0
 
 	signerMap := make(map[wire.OutPoint]*wire.TxOut)
-
 	for _, in := range transaction.TxIn {
 		signerMap[in.PreviousOutPoint] = &wire.TxOut{}
 	}
-
-	multiSigner := txscript.NewMultiPrevOutFetcher(signerMap)
-
-	sigHashes := txscript.NewTxSigHashes(transaction, multiSigner)
+	sigHashes := txscript.NewTxSigHashes(transaction, txscript.NewMultiPrevOutFetcher(signerMap))
 
 	// sign
 	for index, _ := range transaction.TxIn {

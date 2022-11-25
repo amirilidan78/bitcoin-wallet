@@ -35,13 +35,11 @@ func tx() {
 	fee := int64(1000)
 
 	wallet := createWallet()
-	fmt.Println(wallet.Address)
 
 	priv, _ := wallet.PrivateKeyBTCE()
 
 	tx, _ := createTransaction(chain, priv, wallet.Address, toAddressHex, amount, fee)
 
-	fmt.Println("tx")
 	fmt.Println(tx)
 
 }
