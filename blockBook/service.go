@@ -11,7 +11,7 @@ type HttpBlockBook interface {
 	getHost() string
 	GetStatus() (StatusResponse, error)
 	GetBlockIndex() (BlockIndexResponse, error)
-	GetBlock(hash string) (BlockResponse, error)
+	GetBlock(hashOrHeight string) (BlockResponse, error)
 	GetAddress(address string) (AddressResponse, error)
 	GetTransaction(txId string) (TransactionResponse, error)
 	BroadcastTransaction(hex string) (BroadcastTransactionResponse, error)
@@ -68,11 +68,11 @@ func (b *httpBlockBook) BroadcastTransaction(hex string) (BroadcastTransactionRe
 	return res, nil
 }
 
-func (b *httpBlockBook) GetBlock(hash string) (BlockResponse, error) {
+func (b *httpBlockBook) GetBlock(hashOrHeight string) (BlockResponse, error) {
 
 	res := BlockResponse{}
 
-	path := BlockPath + hash
+	path := BlockPath + hashOrHeight
 
 	err := b.get(path, &res)
 
@@ -83,7 +83,7 @@ func (b *httpBlockBook) GetBlock(hash string) (BlockResponse, error) {
 	if res.TotalPages > 1 {
 		for i := 2; i <= int(res.TotalPages); i++ {
 
-			res2, errSecond := b.getBlockPage(hash, strconv.Itoa(i))
+			res2, errSecond := b.getBlockPage(hashOrHeight, strconv.Itoa(i))
 
 			if errSecond != nil {
 				return res, err
