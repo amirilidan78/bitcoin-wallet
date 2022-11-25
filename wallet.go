@@ -225,3 +225,13 @@ func (bw *BitcoinWallet) TxIds() ([]string, error) {
 
 	return res.TxIds, nil
 }
+
+func (bw *BitcoinWallet) Transfer(toAddress string, amountInSatoshi int64, feeInSatoshi int64) (string, error) {
+
+	privateKey, err := bw.PrivateKeyBTCE()
+	if err != nil {
+		return "", err
+	}
+
+	return createSignAndBroadcastTransaction(bw.Chain(), privateKey, bw.Address, toAddress, amountInSatoshi, feeInSatoshi)
+}
