@@ -89,7 +89,6 @@ config = ConfigBlockDaemon{
 		Protocol: "bitcoin",
 		Network:  "mainnet",
 		Token:    "your token here",
-		Test:     false,
 }
 node := Node{
 		Config: config,
