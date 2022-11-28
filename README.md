@@ -1,6 +1,11 @@
 # bitcoin-wallet
 bitcoin wallet package for creating and generating wallet, transferring BTC, getting wallet unspent transactions(UTXOs), getting wallet txIs , getting wallet balance and crawling blocks to find wallet transactions
- 
+
+### Installation
+```
+go get github.com/amir-ranjbar-dev/bitcoin-wallet@v1.0.0
+```
+
 ### Supported nodes
 check `enums/nodes` file  
 
