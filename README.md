@@ -100,5 +100,5 @@ I simplified this repository github.com/btcsuite/btcd repository to create this 
 and thanks to [eltNEG](https://github.com/eltNEG) really helped me to build this package
 
 
-### Donate
-fill free to donate `bc1qucq0um7xnxy65ra5a2xa20lvwqru8uzdl9ygaq`
+### Donation
+Address `bc1qucq0um7xnxy65ra5a2xa20lvwqru8uzdl9ygaq`
