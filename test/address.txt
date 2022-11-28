@@ -1,5 +1,2 @@
-WIF:              cS9Zef6XdN3jHTFJFSsyJAtmDgCCdnygyVUJsLoyB8neuwhidUNJ
 PrivateKey:       88414dbb373a211bc157265a267f3de6a4cec210f3a5da12e89630f2c447ad27
-PublicKey:        04248e601407543f6936346b9971872b34852035b505565103a79ff52b621ce135f20c269f9986d6bf1f7035724785827c9b2b24943104f004b5ac970768144f88
 Address:          tb1qppv790u4dz48ctnk3p7ss7fmspckagp3wrfyp0
-Address:          n3xmiD8kMU42seVZEc5icPKxTrqATm5t6x

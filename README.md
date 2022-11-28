@@ -2,10 +2,7 @@
 bitcoin wallet package for creating and generating wallet, transferring BTC, getting wallet unspent transactions(UTXOs), getting wallet txIs , getting wallet balance and crawling blocks to find wallet transactions
  
 ### Supported nodes
-check `enums/nodes` file alternatively you can create your own node using trezor blockBook nodes
-```
-node := enums.CreateNode("https://btc1.trezor.io","wss://btc1.trezor.io",false)
-```
+check `enums/nodes` file  
 
 ### Wallet methods
 
@@ -34,13 +31,13 @@ balanceInSatoshi // int64
 Getting wallet UTXOs
 ```
 utxos,err := w.UTXOs()
-utxos // []blockBook.Utxo
+utxos // []response.UTXO
 ```
 
-Getting wallet txIds
+Getting wallet transactions
 ```
-txIds,err := w.TxIds()
-txIds // []string
+txs,err := w.Txs()
+txs // []response.Transaction
 ```
 
 crawl blocks for addresses transactions
@@ -85,6 +82,20 @@ txId // string
 ### BTC Faucet
 check this website https://coinfaucet.eu/en/btc-testnet
 
+### Provider 
+sign up and create free account at https://blockdaemon.com and use your own node  
+```
+config = ConfigBlockDaemon{
+		Protocol: "bitcoin",
+		Network:  "mainnet",
+		Token:    "your token here",
+		Test:     false,
+}
+node := Node{
+		Config: config,
+		Test:   false, // or true if you want to use testnet network
+	}
+```
 ### Important
 I simplified this repository github.com/btcsuite/btcd repository to create this package You can check go it for better examples and functionalities and do not use this package in production, I created this package for education purposes, 
 and thanks to [eltNEG](https://github.com/eltNEG) really helped me to build this package

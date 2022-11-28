@@ -4,7 +4,8 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
-	"github.com/Amirilidan78/bitcoin-wallet/blockBook"
+	"github.com/Amirilidan78/bitcoin-wallet/blockDaemon"
+	"github.com/Amirilidan78/bitcoin-wallet/blockDaemon/response"
 	"github.com/Amirilidan78/bitcoin-wallet/enums"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcutil"
@@ -19,7 +20,7 @@ type BitcoinWallet struct {
 	Address    string
 	PrivateKey string
 	PublicKey  string
-	blockBook  blockBook.HttpBlockBook
+	bd         blockDaemon.BlockDaemon
 }
 
 // generating
@@ -39,7 +40,7 @@ func GenerateBitcoinWallet(node enums.Node) *BitcoinWallet {
 		Address:    address,
 		PrivateKey: privateKeyHex,
 		PublicKey:  publicKeyHex,
-		blockBook:  blockBook.NewHttpBlockBookService(node),
+		bd:         blockDaemon.NewBlockDaemonService(node.Config),
 	}
 }
 
@@ -67,7 +68,7 @@ func CreateBitcoinWallet(node enums.Node, privateKeyHex string) (*BitcoinWallet,
 		Address:    address,
 		PrivateKey: privateKeyHex,
 		PublicKey:  publicKeyHex,
-		blockBook:  blockBook.NewHttpBlockBookService(node),
+		bd:         blockDaemon.NewBlockDaemonService(node.Config),
 	}, nil
 }
 
@@ -181,12 +182,12 @@ func getAddressFromPrivateKey(node enums.Node, privateKey *ecdsa.PrivateKey) (st
 
 func (bw *BitcoinWallet) Balance() (int64, error) {
 
-	res, err := bw.blockBook.GetAddress(bw.Address)
+	res, err := bw.bd.AddressBalance(bw.Address)
 	if err != nil {
 		return 0, err
 	}
 
-	balance, err := strconv.Atoi(res.Balance)
+	balance, err := strconv.Atoi(res[0].ConfirmedBalance)
 	if err != nil {
 		return 0, err
 	}
@@ -196,17 +197,17 @@ func (bw *BitcoinWallet) Balance() (int64, error) {
 
 // transactions
 
-func (bw *BitcoinWallet) UTXOs() ([]blockBook.Utxo, error) {
+func (bw *BitcoinWallet) UTXOs() ([]response.UTXO, error) {
 
-	utxos, err := bw.blockBook.GetAddressUTXO(bw.Address)
+	var res []response.UTXO
+
+	utxos, err := bw.bd.AddressUTXO(bw.Address)
 	if err != nil {
-		return utxos, err
+		return nil, err
 	}
 
-	var res []blockBook.Utxo
-
-	for _, utxo := range utxos {
-		if utxo.Confirmations > 2 {
+	for _, utxo := range utxos.Data {
+		if utxo.Mined.Confirmations > 2 {
 			res = append(res, utxo)
 		}
 	}
@@ -214,16 +215,14 @@ func (bw *BitcoinWallet) UTXOs() ([]blockBook.Utxo, error) {
 	return res, nil
 }
 
-func (bw *BitcoinWallet) TxIds() ([]string, error) {
+func (bw *BitcoinWallet) Txs() ([]response.Transaction, error) {
 
-	var txIds []string
-
-	res, err := bw.blockBook.GetAddress(bw.Address)
+	res, err := bw.bd.AddressTxs(bw.Address)
 	if err != nil {
-		return txIds, err
+		return nil, err
 	}
 
-	return res.TxIds, nil
+	return res.Data, nil
 }
 
 func (bw *BitcoinWallet) Transfer(toAddress string, amountInSatoshi int64, feeInSatoshi int64) (string, error) {

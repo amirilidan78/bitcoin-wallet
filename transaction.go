@@ -4,7 +4,8 @@ import (
 	"bytes"
 	"encoding/hex"
 	"errors"
-	"github.com/Amirilidan78/bitcoin-wallet/blockBook"
+	"github.com/Amirilidan78/bitcoin-wallet/blockDaemon"
+	"github.com/Amirilidan78/bitcoin-wallet/blockDaemon/response"
 	"github.com/Amirilidan78/bitcoin-wallet/enums"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcutil"
@@ -12,27 +13,33 @@ import (
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
-	"strconv"
 )
 
-func getAddressUTXOFromBlockBook(chain *chaincfg.Params, address string) ([]blockBook.Utxo, error) {
+func getAddressUTXO(chain *chaincfg.Params, address string) ([]response.UTXO, error) {
 
-	bb := blockBook.NewHttpBlockBookService(enums.MAIN_NODE)
+	node := enums.MAIN_NODE
 	if &chaincfg.TestNet3Params == chain {
-		bb = blockBook.NewHttpBlockBookService(enums.TEST_NODE)
+		node = enums.TEST_NODE
 	}
 
-	return bb.GetAddressUTXO(address)
+	bd := blockDaemon.NewBlockDaemonService(node.Config)
+
+	res, err := bd.AddressUTXO(address)
+	if err != nil {
+		return nil, err
+	}
+
+	return res.Data, nil
 }
 
-func prepareUTXOForTransaction(chain *chaincfg.Params, address string, amount int64, fee int64) ([]blockBook.Utxo, int64, error) {
+func prepareUTXOForTransaction(chain *chaincfg.Params, address string, amount int64, fee int64) ([]response.UTXO, int64, error) {
 
-	records, err := getAddressUTXOFromBlockBook(chain, address)
+	records, err := getAddressUTXO(chain, address)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	var final []blockBook.Utxo
+	var final []response.UTXO
 	var total int64
 
 	for _, record := range records {
@@ -41,16 +48,11 @@ func prepareUTXOForTransaction(chain *chaincfg.Params, address string, amount in
 			break
 		}
 
-		if record.Confirmations > -1 {
+		if record.Mined.Confirmations > 2 {
 
 			final = append(final, record)
 
-			txAmount, err := strconv.Atoi(record.Value)
-			if err != nil {
-				continue
-			}
-
-			total += int64(txAmount)
+			total += int64(record.Value)
 		}
 	}
 
@@ -101,19 +103,19 @@ func createTransactionAndSignTransaction(chain *chaincfg.Params, fromAddress str
 	return t, nil
 }
 
-func createTransactionInputsAndSign(privateKey *btcec.PrivateKey, utxos []blockBook.Utxo, fromAddressByte []byte, fromAddressScriptByte []byte, toAddressByte []byte, totalAmount int64, amount int64, fee int64) (*wire.MsgTx, error) {
+func createTransactionInputsAndSign(privateKey *btcec.PrivateKey, utxos []response.UTXO, fromAddressByte []byte, fromAddressScriptByte []byte, toAddressByte []byte, totalAmount int64, amount int64, fee int64) (*wire.MsgTx, error) {
 
 	transaction := wire.NewMsgTx(2)
 
 	// vin
 	for _, utxo := range utxos {
 
-		hash, err := chainhash.NewHashFromStr(utxo.Txid)
+		hash, err := chainhash.NewHashFromStr(utxo.Mined.TxId)
 		if err != nil {
 			return nil, err
 		}
 
-		txIn := wire.NewTxIn(wire.NewOutPoint(hash, utxo.Vout), nil, [][]byte{})
+		txIn := wire.NewTxIn(wire.NewOutPoint(hash, uint32(utxo.Mined.Index)), nil, [][]byte{})
 		txIn.Sequence = txIn.Sequence - 2
 		transaction.AddTxIn(txIn)
 	}
@@ -136,12 +138,7 @@ func createTransactionInputsAndSign(privateKey *btcec.PrivateKey, utxos []blockB
 	// sign
 	for index, utxo := range utxos {
 
-		amount, err := strconv.ParseInt(utxo.Value, 10, 64)
-		if err != nil {
-			return nil, errors.New("ParseInt utxo value err " + err.Error())
-		}
-
-		signature, err := txscript.WitnessSignature(transaction, sigHashes, index, amount, fromAddressScriptByte, txscript.SigHashAll, privateKey, true)
+		signature, err := txscript.WitnessSignature(transaction, sigHashes, index, int64(utxo.Value), fromAddressScriptByte, txscript.SigHashAll, privateKey, true)
 		if err != nil {
 			return nil, errors.New("WitnessSignature err " + err.Error())
 		}
@@ -166,17 +163,17 @@ func getRawTransaction(tx *wire.MsgTx) (string, error) {
 
 func broadcastHex(chain *chaincfg.Params, hex string) (string, error) {
 
-	bb := blockBook.NewHttpBlockBookService(enums.MAIN_NODE)
+	node := enums.MAIN_NODE
 	if &chaincfg.TestNet3Params == chain {
-		bb = blockBook.NewHttpBlockBookService(enums.TEST_NODE)
+		node = enums.TEST_NODE
 	}
 
-	res, err := bb.BroadcastTransaction(hex)
+	res, err := blockDaemon.NewBlockDaemonService(node.Config).Broadcast(hex)
 	if err != nil {
 		return "", err
 	}
 
-	return res.TxId, nil
+	return res.Id, nil
 }
 
 func createSignAndBroadcastTransaction(chain *chaincfg.Params, privateKey *btcec.PrivateKey, fromAddress string, toAddress string, amount int64, fee int64) (string, error) {
@@ -193,6 +190,5 @@ func createSignAndBroadcastTransaction(chain *chaincfg.Params, privateKey *btcec
 		return "", err
 	}
 
-	// broadcast
 	return broadcastHex(chain, raw)
 }

@@ -3,9 +3,9 @@ package bitcoinWallet
 import (
 	"errors"
 	"fmt"
-	"github.com/Amirilidan78/bitcoin-wallet/blockBook"
+	"github.com/Amirilidan78/bitcoin-wallet/blockDaemon"
+	"github.com/Amirilidan78/bitcoin-wallet/blockDaemon/response"
 	"github.com/Amirilidan78/bitcoin-wallet/enums"
-	"strconv"
 	"sync"
 	"time"
 )
@@ -29,8 +29,8 @@ type CrawlTransaction struct {
 	Symbol        string
 }
 
-func (c *Crawler) blockBookClient() blockBook.HttpBlockBook {
-	return blockBook.NewHttpBlockBookService(c.Node)
+func (c *Crawler) client() blockDaemon.BlockDaemon {
+	return blockDaemon.NewBlockDaemonService(c.Node.Config)
 }
 
 func (c *Crawler) ScanBlocks(count int) ([]CrawlResult, error) {
@@ -39,19 +39,14 @@ func (c *Crawler) ScanBlocks(count int) ([]CrawlResult, error) {
 
 	var allTransactions [][]CrawlTransaction
 
-	client := c.blockBookClient()
+	client := c.client()
 
-	index, err := client.GetBlockIndex()
+	number, err := client.CurrentBlockNumber()
 	if err != nil {
 		return nil, err
 	}
 
-	res, err := client.GetBlock(index.BlockHash)
-	if err != nil {
-		return nil, err
-	}
-
-	blockNumber := res.Height
+	blockNumber := int64(number)
 
 	go c.getBlockData(&wg, client, &allTransactions, blockNumber)
 
@@ -74,29 +69,19 @@ func (c *Crawler) ScanBlocksFromTo(from int, to int) ([]CrawlResult, error) {
 		return nil, errors.New("to number should be more than from number")
 	}
 
-	client := c.blockBookClient()
+	client := c.client()
 
 	var wg sync.WaitGroup
 
 	var allTransactions [][]CrawlTransaction
 
-	index, err := client.GetBlockIndex()
-	if err != nil {
-		return nil, err
-	}
-
-	res, err := client.GetBlock(index.BlockHash)
-	if err != nil {
-		return nil, err
-	}
-
-	blockNumber := res.Height
+	blockNumber := int64(to)
 
 	for i := int(blockNumber); i > from; i-- {
 		wg.Add(1)
 		// sleep to avoid 503 error
 		time.Sleep(100 * time.Millisecond)
-		go c.getBlockData(&wg, client, &allTransactions, blockNumber)
+		go c.getBlockData(&wg, client, &allTransactions, int64(i))
 	}
 
 	wg.Wait()
@@ -104,11 +89,11 @@ func (c *Crawler) ScanBlocksFromTo(from int, to int) ([]CrawlResult, error) {
 	return c.prepareCrawlResultFromTransactions(allTransactions), nil
 }
 
-func (c *Crawler) getBlockData(wg *sync.WaitGroup, client blockBook.HttpBlockBook, allTransactions *[][]CrawlTransaction, num int64) {
+func (c *Crawler) getBlockData(wg *sync.WaitGroup, client blockDaemon.BlockDaemon, allTransactions *[][]CrawlTransaction, num int64) {
 
 	defer wg.Done()
 
-	block, err := client.GetBlock(strconv.FormatInt(num, 10))
+	block, err := client.BlockByNumber(num)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -118,7 +103,7 @@ func (c *Crawler) getBlockData(wg *sync.WaitGroup, client blockBook.HttpBlockBoo
 	*allTransactions = append(*allTransactions, c.extractOurTransactionsFromBlock(block))
 }
 
-func (c *Crawler) extractOurTransactionsFromBlock(block blockBook.BlockResponse) []CrawlTransaction {
+func (c *Crawler) extractOurTransactionsFromBlock(block response.BlockResponse) []CrawlTransaction {
 
 	var txs []CrawlTransaction
 
@@ -127,31 +112,22 @@ func (c *Crawler) extractOurTransactionsFromBlock(block blockBook.BlockResponse)
 		symbol := "BTC"
 
 		fromAddress := ""
-		for _, in := range transaction.VIn {
-			if in.IsAddress {
-				for _, address := range in.Addresses {
-					fromAddress = address
-				}
-			}
+		for _, item := range c.getTxInputs(transaction) {
+			fromAddress = item.Source
 		}
 
 		toAddress := ""
-		for _, in := range transaction.VOut {
-			if in.IsAddress {
-				for _, address := range in.Addresses {
-					if address != fromAddress {
-						toAddress = address
-					}
+		amount := 0
+		for _, item := range c.getTxOutputs(transaction) {
+			for _, ourAddress := range c.Addresses {
+				if ourAddress == item.Destination {
+					toAddress = item.Destination
+					amount = item.Amount
 				}
 			}
 		}
 
-		amount, err := strconv.ParseInt(transaction.Value, 10, 64)
-		if err != nil {
-			return nil
-		}
-
-		txId := transaction.TxId
+		txId := transaction.Id
 		confirmations := transaction.Confirmations
 
 		for _, ourAddress := range c.Addresses {
@@ -161,7 +137,7 @@ func (c *Crawler) extractOurTransactionsFromBlock(block blockBook.BlockResponse)
 					FromAddress:   fromAddress,
 					ToAddress:     toAddress,
 					Amount:        uint64(amount),
-					Confirmations: confirmations,
+					Confirmations: int64(confirmations),
 					Symbol:        symbol,
 				})
 			}
@@ -211,4 +187,30 @@ func (c *Crawler) getAddressCrawlInResultList(result []CrawlResult, address stri
 		}
 	}
 	panic("crawl result not found")
+}
+
+func (c *Crawler) getTxInputs(tx response.Transaction) []response.TransactionEvent {
+
+	var records []response.TransactionEvent
+
+	for _, event := range tx.Events {
+		if event.Type == "utxo_input" {
+			records = append(records, event)
+		}
+	}
+
+	return records
+}
+
+func (c *Crawler) getTxOutputs(tx response.Transaction) []response.TransactionEvent {
+
+	var records []response.TransactionEvent
+
+	for _, event := range tx.Events {
+		if event.Type == "utxo_output" {
+			records = append(records, event)
+		}
+	}
+
+	return records
 }

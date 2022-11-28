@@ -1,33 +1,19 @@
 package enums
 
-type Node struct {
-	Http string
-	Ws   string
-	Test bool
-}
+import "github.com/Amirilidan78/bitcoin-wallet/blockDaemon"
 
-func CreateNode(http string, ws string, isTest bool) Node {
-	return Node{
-		Http: http,
-		Ws:   ws,
-		Test: isTest,
-	}
+type Node struct {
+	Config blockDaemon.ConfigBlockDaemon
+	Test   bool
 }
 
 var (
 	MAIN_NODE = Node{
-		Http: "https://btc1.trezor.io",
-		Ws:   "wss://btc1.trezor.io",
-		Test: false,
-	}
-	CUSTOM_NODE = Node{
-		Http: "http://49.12.103.5:9130",
-		Ws:   "ws://49.12.103.5:9130",
-		Test: false,
+		Config: blockDaemon.MainNet,
+		Test:   false,
 	}
 	TEST_NODE = Node{
-		Http: "https://tbtc1.trezor.io",
-		Ws:   "wss://tbtc1.trezor.io",
-		Test: true,
+		Config: blockDaemon.TestNet,
+		Test:   true,
 	}
 )
