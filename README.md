@@ -98,3 +98,7 @@ node := Node{
 ### Important
 I simplified this repository github.com/btcsuite/btcd repository to create this package You can check go it for better examples and functionalities and do not use this package in production, I created this package for education purposes, 
 and thanks to [eltNEG](https://github.com/eltNEG) really helped me to build this package
+
+
+### Donate
+fill free to donate `bc1qucq0um7xnxy65ra5a2xa20lvwqru8uzdl9ygaq`
