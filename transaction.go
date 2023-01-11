@@ -43,6 +43,11 @@ func prepareUTXOForTransaction(chain *chaincfg.Params, address string, amount in
 	var total int64
 
 	for _, record := range records {
+		
+
+		if record.IsSpent {
+			continue
+		}
 
 		if total >= (amount + fee) {
 			break
